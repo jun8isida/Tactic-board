@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>シンプル作戦盤（サッカー・フットサル）</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #222;
+    color: #fff;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    touch-action: none; /* スマホでの画面スクロールやピンチズームを防止 */
+  }
+
+  /* 上部操作パネル */
+  .controls {
+    background-color: #333;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    z-index: 100;
+  }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn {
+    background-color: #555;
+    color: #fff;
+    border: 1px solid #777;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    flex: 1;
+    text-align: center;
+  }
+
+  .btn:active {
+    background-color: #888;
+  }
+
+  .btn.active {
+    background-color: #2b7de9;
+    border-color: #64a5ff;
+  }
+
+  .team-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #292929;
+    padding: 4px 8px;
+    border-radius: 6px;
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .team-label {
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .dot-red {
+    width: 12px;
+    height: 12px;
+    background-color: #e53935;
+    border-radius: 50%;
+    display: inline-block;
+    border: 1px solid #fff;
+  }
+
+  .dot-blue {
+    width: 12px;
+    height: 12px;
+    background-color: #1e88e5;
+    border-radius: 50%;
+    display: inline-block;
+    border: 1px solid #fff;
+  }
+
+  .btn-sm {
+    background-color: #444;
+    color: #fff;
+    border: 1px solid #666;
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .btn-sm:active {
+    background-color: #777;
+  }
+
+  /* コートエリア */
+  .board-wrapper {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    background-color: #1a1a1a;
+    position: relative;
+  }
+
+  .pitch {
+    width: 100%;
+    height: 100%;
+    max-width: 500px;
+    background-color: #2e7d32;
+    border: 3px solid #fff;
+    position: relative;
+    border-radius: 4px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+  }
+
+  /* コートの白線 */
+  .center-line {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: rgba(255, 255, 255, 0.85);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  .center-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 90px;
+    height: 90px;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .center-spot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .penalty-area {
+    position: absolute;
+    left: 50%;
+    width: 56%;
+    height: 16%;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .penalty-top {
+    top: 0;
+    border-top: none;
+  }
+
+  .penalty-bottom {
+    bottom: 0;
+    border-bottom: none;
+  }
+
+  .goal-area {
+    position: absolute;
+    left: 50%;
+    width: 28%;
+    height: 6%;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .goal-top {
+    top: 0;
+    border-top: none;
+  }
+
+  .goal-bottom {
+    bottom: 0;
+    border-bottom: none;
+  }
+
+  .goal-net {
+    position: absolute;
+    left: 50%;
+    width: 18%;
+    height: 8px;
+    border: 2px solid #ddd;
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .goal-net-top {
+    top: -8px;
+    border-bottom: none;
+  }
+
+  .goal-net-bottom {
+    bottom: -8px;
+    border-top: none;
+  }
+
+  /* 駒（選手・ボール） */
+  .piece {
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 14px;
+    color: #fff;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    z-index: 10;
+    touch-action: none;
+    transition: transform 0.05s;
+  }
+
+  .piece:active {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+
+  .team-red {
+    background-color: #e53935;
+    border: 2px solid #fff;
+  }
+
+  .team-blue {
+    background-color: #1e88e5;
+    border: 2px solid #fff;
+  }
+
+  .ball {
+    width: 26px;
+    height: 26px;
+    background: radial-gradient(circle at 35% 35%, #fff, #ffd600 60%, #f57f17);
+    border: 2px solid #222;
+    z-index: 30;
+  }
+
+  .ball::after {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid rgba(0,0,0,0.4);
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 操作パネル -->
+  <div class="controls">
+    <div class="row">
+      <button class="btn active" id="btn-futsal" onclick="setMode('futsal')">フットサル (5v5)</button>
+      <button class="btn" id="btn-soccer" onclick="setMode('soccer')">サッカー (11v11)</button>
+      <button class="btn" style="flex: 0.6; background-color: #444;" onclick="resetBoard()">リセット</button>
+    </div>
+    <div class="row">
+      <!-- 赤チーム人数操作 -->
+      <div class="team-ctrl">
+        <span class="team-label"><span class="dot-red"></span>赤: <span id="count-red">5</span></span>
+        <div style="display:flex; gap:4px;">
+          <button class="btn-sm" onclick="changeCount('red', -1)">−</button>
+          <button class="btn-sm" onclick="changeCount('red', 1)">＋</button>
+        </div>
+      </div>
+      <!-- 青チーム人数操作 -->
+      <div class="team-ctrl">
+        <span class="team-label"><span class="dot-blue"></span>青: <span id="count-blue">5</span></span>
+        <div style="display:flex; gap:4px;">
+          <button class="btn-sm" onclick="changeCount('blue', -1)">−</button>
+          <button class="btn-sm" onclick="changeCount('blue', 1)">＋</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- コート表示領域 -->
+  <div class="board-wrapper">
+    <div class="pitch" id="pitch">
+      <!-- 白線・ゴール -->
+      <div class="goal-net goal-net-top"></div>
+      <div class="penalty-area penalty-top"></div>
+      <div class="goal-area goal-top"></div>
+      
+      <div class="center-line"></div>
+      <div class="center-circle"></div>
+      <div class="center-spot"></div>
+      
+      <div class="penalty-area penalty-bottom"></div>
+      <div class="goal-area goal-bottom"></div>
+      <div class="goal-net goal-net-bottom"></div>
+
+      <!-- 駒がここに追加されます -->
+      <div id="pieces-layer"></div>
+    </div>
+  </div>
+
+<script>
+  const pitch = document.getElementById('pitch');
+  const piecesLayer = document.getElementById('pieces-layer');
+  const countRedEl = document.getElementById('count-red');
+  const countBlueEl = document.getElementById('count-blue');
+  const btnFutsal = document.getElementById('btn-futsal');
+  const btnSoccer = document.getElementById('btn-soccer');
+
+  let currentMode = 'futsal';
+  let redPlayers = [];
+  let bluePlayers = [];
+  let ballElement = null;
+  let maxZIndex = 20;
+
+  // 初期配置の座標データ（パーセンテージ指定：xが横、yが縦）
+  const formations = {
+    futsal: {
+      // 上側コート（赤：1-2-1）
+      red: [
+        { x: 50, y: 7 },  // GK
+        { x: 50, y: 20 }, // FIXO
+        { x: 22, y: 32 }, // ALA
+        { x: 78, y: 32 }, // ALA
+        { x: 50, y: 43 }  // PIVO
+      ],
+      // 下側コート（青：1-2-1）
+      blue: [
+        { x: 50, y: 93 }, // GK
+        { x: 50, y: 80 }, // FIXO
+        { x: 22, y: 68 }, // ALA
+        { x: 78, y: 68 }, // ALA
+        { x: 50, y: 57 }  // PIVO
+      ]
+    },
+    soccer: {
+      // 上側コート（赤：4-4-2）
+      red: [
+        { x: 50, y: 5 },  // GK
+        { x: 18, y: 17 }, { x: 39, y: 15 }, { x: 61, y: 15 }, { x: 82, y: 17 }, // DF
+        { x: 18, y: 30 }, { x: 39, y: 28 }, { x: 61, y: 28 }, { x: 82, y: 30 }, // MF
+        { x: 36, y: 42 }, { x: 64, y: 42 }  // FW
+      ],
+      // 下側コート（青：4-4-2）
+      blue: [
+        { x: 50, y: 95 }, // GK
+        { x: 18, y: 83 }, { x: 39, y: 85 }, { x: 61, y: 85 }, { x: 82, y: 83 }, // DF
+        { x: 18, y: 70 }, { x: 39, y: 72 }, { x: 61, y: 72 }, { x: 82, y: 70 }, // MF
+        { x: 36, y: 58 }, { x: 64, y: 58 }  // FW
+      ]
+    }
+  };
+
+  // 駒要素の作成とドラッグイベント登録
+  function createPiece(className, label, xPercent, yPercent) {
+    const el = document.createElement('div');
+    el.className = 'piece ' + className;
+    if (label !== '') {
+      el.textContent = label;
+    }
+    el.style.left = xPercent + '%';
+    el.style.top = yPercent + '%';
+
+    // Pointer Events でスマホタッチとマウス操作の両方に対応
+    let isDragging = false;
+
+    el.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      el.setPointerCapture(e.pointerId);
+      maxZIndex++;
+      // ボールは常に選手より上に表示されやすくする
+      el.style.zIndex = className.includes('ball') ? maxZIndex + 100 : maxZIndex;
+      e.stopPropagation();
+    });
+
+    el.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const rect = pitch.getBoundingClientRect();
+      let x = ((e.clientX - rect.left) / rect.width) * 100;
+      let y = ((e.clientY - rect.top) / rect.height) * 100;
+
+      // コート外にはみ出さないように制限
+      x = Math.max(3, Math.min(97, x));
+      y = Math.max(3, Math.min(97, y));
+
+      el.style.left = x + '%';
+      el.style.top = y + '%';
+    });
+
+    const endDrag = (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      if (el.hasPointerCapture(e.pointerId)) {
+        el.releasePointerCapture(e.pointerId);
+      }
+    };
+
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+
+    piecesLayer.appendChild(el);
+    return el;
+  }
+
+  // モード切替（フットサル / サッカー）
+  function setMode(mode) {
+    currentMode = mode;
+    btnFutsal.classList.toggle('active', mode === 'futsal');
+    btnSoccer.classList.toggle('active', mode === 'soccer');
+
+    piecesLayer.innerHTML = '';
+    redPlayers = [];
+    bluePlayers = [];
+
+    const preset = formations[mode];
+
+    preset.red.forEach((pos, idx) => {
+      const p = createPiece('team-red', idx + 1, pos.x, pos.y);
+      redPlayers.push(p);
+    });
+
+    preset.blue.forEach((pos, idx) => {
+      const p = createPiece('team-blue', idx + 1, pos.x, pos.y);
+      bluePlayers.push(p);
+    });
+
+    ballElement = createPiece('ball', '', 50, 50);
+    updateCountDisplay();
+  }
+
+  // 人数の増減
+  function changeCount(team, diff) {
+    const list = team === 'red' ? redPlayers : bluePlayers;
+    const className = team === 'red' ? 'team-red' : 'team-blue';
+
+    if (diff > 0) {
+      if (list.length >= 15) return; // 最大15人まで
+      const newNum = list.length + 1;
+      // 新しく追加する選手は重ならないように少しずらして配置
+      const offsetX = 25 + ((newNum * 13) % 50);
+      const offsetY = team === 'red' ? 46 : 54;
+      const p = createPiece(className, newNum, offsetX, offsetY);
+      list.push(p);
+    } else if (diff < 0) {
+      if (list.length <= 0) return;
+      const removed = list.pop();
+      removed.remove();
+    }
+    updateCountDisplay();
+  }
+
+  // リセット（現在の人数を保ったまま初期位置に整列）
+  function resetBoard() {
+    const preset = formations[currentMode];
+
+    redPlayers.forEach((p, idx) => {
+      if (idx < preset.red.length) {
+        p.style.left = preset.red[idx].x + '%';
+        p.style.top = preset.red[idx].y + '%';
+      } else {
+        p.style.left = (25 + ((idx * 13) % 50)) + '%';
+        p.style.top = '46%';
+      }
+    });
+
+    bluePlayers.forEach((p, idx) => {
+      if (idx < preset.blue.length) {
+        p.style.left = preset.blue[idx].x + '%';
+        p.style.top = preset.blue[idx].y + '%';
+      } else {
+        p.style.left = (25 + ((idx * 13) % 50)) + '%';
+        p.style.top = '54%';
+      }
+    });
+
+    if (ballElement) {
+      ballElement.style.left = '50%';
+      ballElement.style.top = '50%';
+    }
+  }
+
+  function updateCountDisplay() {
+    countRedEl.textContent = redPlayers.length;
+    countBlueEl.textContent = bluePlayers.length;
+  }
+
+  // 初期起動（フットサル 5v5）
+  setMode('futsal');
+</script>
+</body>
+</html>
