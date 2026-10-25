@@ -39,7 +39,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   .btn {
@@ -47,12 +47,13 @@
     color: #fff;
     border: 1px solid #777;
     border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 13px;
+    padding: 6px 8px;
+    font-size: 12px;
     font-weight: bold;
     cursor: pointer;
     flex: 1;
     text-align: center;
+    white-space: nowrap;
   }
 
   .btn:active {
@@ -119,6 +120,13 @@
 
   .btn-sm:active {
     background-color: #777;
+  }
+
+  .hint-bar {
+    font-size: 11px;
+    color: #ccc;
+    text-align: center;
+    padding-top: 2px;
   }
 
   /* コートエリア */
@@ -275,6 +283,33 @@
     border: 2px solid #fff;
   }
 
+  /* 名前ラベル */
+  .piece-number {
+    pointer-events: none;
+    line-height: 1;
+  }
+
+  .piece-name {
+    position: absolute;
+    top: 34px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    font-size: 10px;
+    font-weight: normal;
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+
+  .piece-name:empty {
+    display: none;
+  }
+
+  /* ボール */
   .ball {
     width: 26px;
     height: 26px;
@@ -299,7 +334,8 @@
     <div class="row">
       <button class="btn active" id="btn-futsal" onclick="setMode('futsal')">フットサル (5v5)</button>
       <button class="btn" id="btn-soccer" onclick="setMode('soccer')">サッカー (11v11)</button>
-      <button class="btn" style="flex: 0.6; background-color: #444;" onclick="resetBoard()">リセット</button>
+      <button class="btn" style="flex: 0.55; background-color: #444;" onclick="resetBoard()">位置リセット</button>
+      <button class="btn" style="flex: 0.55; background-color: #444;" onclick="resetNames()">名前初期化</button>
     </div>
     <div class="row">
       <!-- 赤チーム人数操作 -->
@@ -319,6 +355,7 @@
         </div>
       </div>
     </div>
+    <div class="hint-bar">💡 選手をダブルタップすると名前を変更・保存できます</div>
   </div>
 
   <!-- コート表示領域 -->
@@ -356,63 +393,103 @@
   let ballElement = null;
   let maxZIndex = 20;
 
-  // 初期配置の座標データ（パーセンテージ指定：xが横、yが縦）
+  // 初期配置と初期名（ポジション名など）のデータ
+  // ※コード内の name: '〇〇' を書き換えると、初期表示の名前を変更できます
   const formations = {
     futsal: {
-      // 上側コート（赤：1-2-1）
       red: [
-        { x: 50, y: 7 },  // GK
-        { x: 50, y: 20 }, // FIXO
-        { x: 22, y: 32 }, // ALA
-        { x: 78, y: 32 }, // ALA
-        { x: 50, y: 43 }  // PIVO
+        { x: 50, y: 7,  name: 'GK' },
+        { x: 50, y: 20, name: 'フィクソ' },
+        { x: 22, y: 31, name: 'アラ' },
+        { x: 78, y: 31, name: 'アラ' },
+        { x: 50, y: 42, name: 'ピヴォ' }
       ],
-      // 下側コート（青：1-2-1）
       blue: [
-        { x: 50, y: 93 }, // GK
-        { x: 50, y: 80 }, // FIXO
-        { x: 22, y: 68 }, // ALA
-        { x: 78, y: 68 }, // ALA
-        { x: 50, y: 57 }  // PIVO
+        { x: 50, y: 93, name: 'GK' },
+        { x: 50, y: 80, name: 'フィクソ' },
+        { x: 22, y: 69, name: 'アラ' },
+        { x: 78, y: 69, name: 'アラ' },
+        { x: 50, y: 58, name: 'ピヴォ' }
       ]
     },
     soccer: {
-      // 上側コート（赤：4-4-2）
       red: [
-        { x: 50, y: 5 },  // GK
-        { x: 18, y: 17 }, { x: 39, y: 15 }, { x: 61, y: 15 }, { x: 82, y: 17 }, // DF
-        { x: 18, y: 30 }, { x: 39, y: 28 }, { x: 61, y: 28 }, { x: 82, y: 30 }, // MF
-        { x: 36, y: 42 }, { x: 64, y: 42 }  // FW
+        { x: 50, y: 5,  name: 'GK' },
+        { x: 16, y: 16, name: 'LSB' },
+        { x: 38, y: 14, name: 'CB' },
+        { x: 62, y: 14, name: 'CB' },
+        { x: 84, y: 16, name: 'RSB' },
+        { x: 16, y: 29, name: 'LMF' },
+        { x: 38, y: 27, name: 'CMF' },
+        { x: 62, y: 27, name: 'CMF' },
+        { x: 84, y: 29, name: 'RMF' },
+        { x: 36, y: 41, name: 'FW' },
+        { x: 64, y: 41, name: 'FW' }
       ],
-      // 下側コート（青：4-4-2）
       blue: [
-        { x: 50, y: 95 }, // GK
-        { x: 18, y: 83 }, { x: 39, y: 85 }, { x: 61, y: 85 }, { x: 82, y: 83 }, // DF
-        { x: 18, y: 70 }, { x: 39, y: 72 }, { x: 61, y: 72 }, { x: 82, y: 70 }, // MF
-        { x: 36, y: 58 }, { x: 64, y: 58 }  // FW
+        { x: 50, y: 95, name: 'GK' },
+        { x: 16, y: 84, name: 'LSB' },
+        { x: 38, y: 86, name: 'CB' },
+        { x: 62, y: 86, name: 'CB' },
+        { x: 84, y: 84, name: 'RSB' },
+        { x: 16, y: 71, name: 'LMF' },
+        { x: 38, y: 73, name: 'CMF' },
+        { x: 62, y: 73, name: 'CMF' },
+        { x: 84, y: 71, name: 'RMF' },
+        { x: 36, y: 59, name: 'FW' },
+        { x: 64, y: 59, name: 'FW' }
       ]
     }
   };
 
-  // 駒要素の作成とドラッグイベント登録
-  function createPiece(className, label, xPercent, yPercent) {
+  // スマホ本体（localStorage）から保存済みの名前を取得
+  function getSavedName(mode, team, index, defaultName) {
+    const key = `tactics_name_${mode}_${team}_${index}`;
+    const saved = localStorage.getItem(key);
+    return saved !== null ? saved : defaultName;
+  }
+
+  // スマホ本体（localStorage）に名前を保存
+  function saveName(mode, team, index, newName) {
+    const key = `tactics_name_${mode}_${team}_${index}`;
+    localStorage.setItem(key, newName);
+  }
+
+  // 駒要素の作成とドラッグ＆ダブルタップイベント登録
+  function createPiece(team, index, labelNumber, defaultName, xPercent, yPercent) {
     const el = document.createElement('div');
-    el.className = 'piece ' + className;
-    if (label !== '') {
-      el.textContent = label;
+    const isBall = team === 'ball';
+    el.className = 'piece ' + (isBall ? 'ball' : `team-${team}`);
+
+    let nameEl = null;
+
+    if (!isBall) {
+      const numSpan = document.createElement('span');
+      numSpan.className = 'piece-number';
+      numSpan.textContent = labelNumber;
+      el.appendChild(numSpan);
+
+      nameEl = document.createElement('div');
+      nameEl.className = 'piece-name';
+      nameEl.textContent = getSavedName(currentMode, team, index, defaultName);
+      el.appendChild(nameEl);
     }
+
     el.style.left = xPercent + '%';
     el.style.top = yPercent + '%';
 
-    // Pointer Events でスマホタッチとマウス操作の両方に対応
     let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let lastTapTime = 0;
 
     el.addEventListener('pointerdown', (e) => {
       isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
       el.setPointerCapture(e.pointerId);
       maxZIndex++;
-      // ボールは常に選手より上に表示されやすくする
-      el.style.zIndex = className.includes('ball') ? maxZIndex + 100 : maxZIndex;
+      el.style.zIndex = isBall ? maxZIndex + 100 : maxZIndex;
       e.stopPropagation();
     });
 
@@ -436,13 +513,37 @@
       if (el.hasPointerCapture(e.pointerId)) {
         el.releasePointerCapture(e.pointerId);
       }
+
+      // ボール以外の駒で、ほとんど動かさずに指を離した場合は「タップ」と判定
+      if (!isBall && e.type === 'pointerup') {
+        const moveDist = Math.hypot(e.clientX - startX, e.clientY - startY);
+        if (moveDist < 10) {
+          const now = Date.now();
+          // 350ミリ秒以内の2回連続タップ（ダブルタップ）で名前変更
+          if (now - lastTapTime < 350) {
+            const currentName = nameEl.textContent;
+            const teamName = team === 'red' ? '赤チーム' : '青チーム';
+            setTimeout(() => {
+              const input = prompt(`${teamName} ${labelNumber}番の名前を入力してください\n（空欄にするとラベルを非表示にできます）`, currentName);
+              if (input !== null) {
+                const trimmed = input.trim();
+                nameEl.textContent = trimmed;
+                saveName(currentMode, team, index, trimmed);
+              }
+            }, 10);
+            lastTapTime = 0;
+          } else {
+            lastTapTime = now;
+          }
+        }
+      }
     };
 
     el.addEventListener('pointerup', endDrag);
     el.addEventListener('pointercancel', endDrag);
 
     piecesLayer.appendChild(el);
-    return el;
+    return { el, nameEl, defaultName };
   }
 
   // モード切替（フットサル / サッカー）
@@ -458,61 +559,63 @@
     const preset = formations[mode];
 
     preset.red.forEach((pos, idx) => {
-      const p = createPiece('team-red', idx + 1, pos.x, pos.y);
+      const p = createPiece('red', idx, idx + 1, pos.name, pos.x, pos.y);
       redPlayers.push(p);
     });
 
     preset.blue.forEach((pos, idx) => {
-      const p = createPiece('team-blue', idx + 1, pos.x, pos.y);
+      const p = createPiece('blue', idx, idx + 1, pos.name, pos.x, pos.y);
       bluePlayers.push(p);
     });
 
-    ballElement = createPiece('ball', '', 50, 50);
+    const ballObj = createPiece('ball', 0, '', '', 50, 50);
+    ballElement = ballObj.el;
     updateCountDisplay();
   }
 
   // 人数の増減
   function changeCount(team, diff) {
     const list = team === 'red' ? redPlayers : bluePlayers;
-    const className = team === 'red' ? 'team-red' : 'team-blue';
+    const preset = formations[currentMode][team];
 
     if (diff > 0) {
       if (list.length >= 15) return; // 最大15人まで
-      const newNum = list.length + 1;
-      // 新しく追加する選手は重ならないように少しずらして配置
+      const idx = list.length;
+      const newNum = idx + 1;
+      const defaultName = idx < preset.length ? preset[idx].name : `選手${newNum}`;
       const offsetX = 25 + ((newNum * 13) % 50);
       const offsetY = team === 'red' ? 46 : 54;
-      const p = createPiece(className, newNum, offsetX, offsetY);
+      const p = createPiece(team, idx, newNum, defaultName, offsetX, offsetY);
       list.push(p);
     } else if (diff < 0) {
       if (list.length <= 0) return;
       const removed = list.pop();
-      removed.remove();
+      removed.el.remove();
     }
     updateCountDisplay();
   }
 
-  // リセット（現在の人数を保ったまま初期位置に整列）
+  // 位置リセット（名前は維持したまま初期位置に整列）
   function resetBoard() {
     const preset = formations[currentMode];
 
     redPlayers.forEach((p, idx) => {
       if (idx < preset.red.length) {
-        p.style.left = preset.red[idx].x + '%';
-        p.style.top = preset.red[idx].y + '%';
+        p.el.style.left = preset.red[idx].x + '%';
+        p.el.style.top = preset.red[idx].y + '%';
       } else {
-        p.style.left = (25 + ((idx * 13) % 50)) + '%';
-        p.style.top = '46%';
+        p.el.style.left = (25 + ((idx * 13) % 50)) + '%';
+        p.el.style.top = '46%';
       }
     });
 
     bluePlayers.forEach((p, idx) => {
       if (idx < preset.blue.length) {
-        p.style.left = preset.blue[idx].x + '%';
-        p.style.top = preset.blue[idx].y + '%';
+        p.el.style.left = preset.blue[idx].x + '%';
+        p.el.style.top = preset.blue[idx].y + '%';
       } else {
-        p.style.left = (25 + ((idx * 13) % 50)) + '%';
-        p.style.top = '54%';
+        p.el.style.left = (25 + ((idx * 13) % 50)) + '%';
+        p.el.style.top = '54%';
       }
     });
 
@@ -520,6 +623,21 @@
       ballElement.style.left = '50%';
       ballElement.style.top = '50%';
     }
+  }
+
+  // 名前初期化（変更した名前を初期状態のポジション名に戻す）
+  function resetNames() {
+    if (!confirm('現在のモード（' + (currentMode === 'futsal' ? 'フットサル' : 'サッカー') + '）の選手名をすべて初期値に戻しますか？')) {
+      return;
+    }
+    redPlayers.forEach((p, idx) => {
+      localStorage.removeItem(`tactics_name_${currentMode}_red_${idx}`);
+      if (p.nameEl) p.nameEl.textContent = p.defaultName;
+    });
+    bluePlayers.forEach((p, idx) => {
+      localStorage.removeItem(`tactics_name_${currentMode}_blue_${idx}`);
+      if (p.nameEl) p.nameEl.textContent = p.defaultName;
+    });
   }
 
   function updateCountDisplay() {
